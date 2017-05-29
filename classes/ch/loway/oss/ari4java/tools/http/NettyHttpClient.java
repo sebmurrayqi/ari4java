@@ -26,22 +26,24 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 
 /**
  * HTTP and WebSocket client implementation based on netty.io.
- * 
+ *
  * Threading is handled by NioEventLoopGroup, which selects on multiple
  * sockets and provides threads to handle the events on the sockets.
- * 
+ *
  * Requires netty-all-4.0.12.Final.jar
- * 
+ *
  * @author mwalton
  *
  */
 public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconnect {
 
     public static final int MAX_HTTP_REQUEST_KB = 256;
-    
+
     private Bootstrap bootStrap;
     private URI baseUri;
     private EventLoopGroup group;
@@ -58,6 +60,8 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
     private ScheduledFuture<?> wsPingTimer = null;
     private NettyWSClientHandler wsHandler;
     private ChannelFutureListener wsFuture;
+    private AtomicBoolean pongReceived = new AtomicBoolean(true);
+
 
     public NettyHttpClient() {
         group = new NioEventLoopGroup();
@@ -179,8 +183,8 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
     }
 
     private RestException makeException(HttpResponseStatus status, String response, List<HttpResponse> errors) {
-        
-        if (status == null ) {            
+
+        if (status == null ) {
             return new RestException("Shutdown: " + response);
         }
 
@@ -315,11 +319,21 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
         return createWsClientConnection();
     }
 
+    @Override
+    public void pongReceived() {
+        System.out.println(String.format("HTTPClient :: PONG Received"));
+        this.pongReceived.set(true);
+    }
+
     private void startPing() {
         if (wsPingTimer == null) {
             wsPingTimer = group.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
+                    if (!pongReceived.get()) {
+                        wsCallback.onFailure(new WebsocketTimeoutException("Asterisk Websocket PING timed out"));
+                    }
+                    pongReceived.set(false);
                     if (System.currentTimeMillis() - wsCallback.getLastResponseTime() > 15000) {
                         if (!wsChannelFuture.isCancelled() && wsChannelFuture.channel() != null) {
                             WebSocketFrame frame = new PingWebSocketFrame(Unpooled.wrappedBuffer("ari4j".getBytes( StandardCharsets.UTF_8 )));
@@ -327,7 +341,7 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
                         }
                     }
                 }
-            }, 5, 5, TimeUnit.MINUTES);
+            }, 30, 30, TimeUnit.SECONDS);
         }
     }
 

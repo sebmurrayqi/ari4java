@@ -65,14 +65,14 @@ public class NettyWSClientHandler extends NettyHttpClientHandler {
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
         Channel ch = ctx.channel();
-        
+
         if (!handshaker.isHandshakeComplete()) {
             handshaker.finishHandshake(ch, (FullHttpResponse) msg);
             handshakeFuture.setSuccess();
             wsCallback.onChReadyToWrite();
             return;
         }
-        
+
         if (msg instanceof FullHttpResponse) {
             FullHttpResponse response = (FullHttpResponse) msg;
             String error = "Unexpected FullHttpResponse (getStatus=" + response.getStatus() + ", content=" + response.content().toString(CharsetUtil.UTF_8) + ')';
@@ -80,9 +80,13 @@ public class NettyWSClientHandler extends NettyHttpClientHandler {
             throw new Exception(error);
         }
 
+        if (msg instanceof PongWebSocketFrame) {
+
+        }
+
         // call this so we can set the last received time
         wsCallback.onResponseReceived();
-        
+
         WebSocketFrame frame = (WebSocketFrame) msg;
         if (frame instanceof TextWebSocketFrame) {
             TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
@@ -97,8 +101,11 @@ public class NettyWSClientHandler extends NettyHttpClientHandler {
                     wsCallback.onDisconnect();
                 }
             }
+        } else if (frame instanceof PongWebSocketFrame) {
+            System.out.println(String.format("PONG received"));
+            wsClient.pongReceived();
         }
-        
+
     }
 
     @Override
