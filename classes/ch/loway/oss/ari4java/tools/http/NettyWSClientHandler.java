@@ -102,7 +102,7 @@ public class NettyWSClientHandler extends NettyHttpClientHandler {
                 }
             }
         } else if (frame instanceof PongWebSocketFrame) {
-            System.out.println(String.format("PONG received"));
+            System.out.println(String.format("channelRead0 :: PONG received"));
             wsClient.pongReceived();
         }
 

@@ -62,6 +62,8 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
     private ChannelFutureListener wsFuture;
     private AtomicBoolean pongReceived = new AtomicBoolean(true);
 
+    private final int MAX_WEBSOCKET_PING_RETRIES = 2;
+
 
     public NettyHttpClient() {
         group = new NioEventLoopGroup();
@@ -312,11 +314,15 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
         };
         wsChannelFuture.addListener(wsFuture);
 
-        // start a ws ping schedule
-        startPing();
 
         // Provide disconnection handle to client
-        return createWsClientConnection();
+        WsClientConnection connection = createWsClientConnection();
+
+        // start a ws ping schedule
+        this.pongReceived.set(true);
+        startPing();
+
+        return connection;
     }
 
     @Override
@@ -328,16 +334,26 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
     private void startPing() {
         if (wsPingTimer == null) {
             wsPingTimer = group.scheduleAtFixedRate(new Runnable() {
+                private int retries = 0;
                 @Override
                 public void run() {
                     if (!pongReceived.get()) {
-                        wsCallback.onFailure(new WebsocketTimeoutException("Asterisk Websocket PING timed out"));
+                        retries++;
+                    } else {
+                        retries = 0;
                     }
-                    pongReceived.set(false);
-                    if (System.currentTimeMillis() - wsCallback.getLastResponseTime() > 15000) {
-                        if (!wsChannelFuture.isCancelled() && wsChannelFuture.channel() != null) {
-                            WebSocketFrame frame = new PingWebSocketFrame(Unpooled.wrappedBuffer("ari4j".getBytes( StandardCharsets.UTF_8 )));
-                            wsChannelFuture.channel().writeAndFlush(frame);
+
+                    if(retries == MAX_WEBSOCKET_PING_RETRIES) {
+                        wsCallback.onFailure(new WebsocketTimeoutException("Asterisk Websocket PING timed out"));
+                        wsPingTimer.cancel(true);
+                        wsPingTimer = null;
+                    } else{
+                        pongReceived.set(false);
+                        if (System.currentTimeMillis() - wsCallback.getLastResponseTime() > 15000) {
+                            if (!wsChannelFuture.isCancelled() && wsChannelFuture.channel() != null) {
+                                WebSocketFrame frame = new PingWebSocketFrame(Unpooled.wrappedBuffer("ari4j".getBytes(StandardCharsets.UTF_8)));
+                                wsChannelFuture.channel().writeAndFlush(frame);
+                            }
                         }
                     }
                 }
