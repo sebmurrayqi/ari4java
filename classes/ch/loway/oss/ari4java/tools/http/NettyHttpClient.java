@@ -344,9 +344,9 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
                     }
 
                     if(retries == MAX_WEBSOCKET_PING_RETRIES) {
-                        wsCallback.onFailure(new WebsocketTimeoutException("Asterisk Websocket PING timed out"));
                         wsPingTimer.cancel(true);
                         wsPingTimer = null;
+                        wsCallback.onFailure(new WebsocketTimeoutException("Asterisk Websocket PING timed out"));
                     } else{
                         pongReceived.set(false);
                         if (System.currentTimeMillis() - wsCallback.getLastResponseTime() > 15000) {
