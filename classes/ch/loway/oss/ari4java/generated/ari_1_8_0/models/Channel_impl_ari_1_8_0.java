@@ -7,6 +7,7 @@ package ch.loway.oss.ari4java.generated.ari_1_8_0.models;
 // ----------------------------------------------------
 
 import ch.loway.oss.ari4java.generated.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Date;
 import java.util.List;
@@ -127,6 +128,7 @@ This is the same as the Uniqueid field in AMI.  */
  * 
  * @since ari_2_0_0
  *********************************************************/
+@JsonIgnore
  public String getChannelvars(){
   throw new UnsupportedOperationException("Method availble from ...");
 };
@@ -136,6 +138,7 @@ This is the same as the Uniqueid field in AMI.  */
  * 
  * @since ari_2_0_0
  *********************************************************/
+@JsonIgnore
  public void setChannelvars(String val ){
   throw new UnsupportedOperationException("Method availble from ...");
 };

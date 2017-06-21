@@ -348,12 +348,10 @@ public class NettyHttpClient implements HttpClient, WsClient, WsClientAutoReconn
                         wsPingTimer = null;
                         wsCallback.onFailure(new WebsocketTimeoutException("Asterisk Websocket PING timed out"));
                     } else{
-                        pongReceived.set(false);
-                        if (System.currentTimeMillis() - wsCallback.getLastResponseTime() > 15000) {
-                            if (!wsChannelFuture.isCancelled() && wsChannelFuture.channel() != null) {
-                                WebSocketFrame frame = new PingWebSocketFrame(Unpooled.wrappedBuffer("ari4j".getBytes(StandardCharsets.UTF_8)));
-                                wsChannelFuture.channel().writeAndFlush(frame);
-                            }
+                        if (System.currentTimeMillis() - wsCallback.getLastResponseTime() > 15000 && !wsChannelFuture.isCancelled() && wsChannelFuture.channel() != null) {
+                            pongReceived.set(false);
+                            WebSocketFrame frame = new PingWebSocketFrame(Unpooled.wrappedBuffer("ari4j".getBytes(StandardCharsets.UTF_8)));
+                            wsChannelFuture.channel().writeAndFlush(frame);
                         }
                     }
                 }
