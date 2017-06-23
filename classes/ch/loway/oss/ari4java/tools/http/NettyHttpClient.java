@@ -43,6 +43,9 @@ import ch.loway.oss.ari4java.tools.HttpClient;
 import ch.loway.oss.ari4java.tools.HttpResponseHandler;
 import ch.loway.oss.ari4java.tools.RestException;
 import ch.loway.oss.ari4java.tools.WsClient;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+
 
 /**
  * HTTP and WebSocket client implementation based on netty.io.
@@ -64,6 +67,8 @@ public class NettyHttpClient implements HttpClient, WsClient {
     private EventLoopGroup group;
     private String username;
     private String password;
+
+    private ExecutorService callbackService = Executors.newCachedThreadPool();
 
     public void initialize(String baseUrl, String username, String password) throws URISyntaxException {
         this.username = username;
@@ -192,17 +197,17 @@ public class NettyHttpClient implements HttpClient, WsClient {
                                 HttpResponseStatus rStatus = handler.getResponseStatus();
                                 
                                 if ( httpResponseOkay(rStatus)) {
-                                    responseHandler.onSuccess(handler.getResponseText());
+                                    callbackService.execute(() -> responseHandler.onSuccess(handler.getResponseText()));
                                 } else {
-                                    responseHandler.onFailure(makeException(handler.getResponseStatus(), handler.getResponseText(), errors));
+                                    callbackService.execute(() -> responseHandler.onFailure(makeException(handler.getResponseStatus(), handler.getResponseText(), errors)));
                                 }
                             } else {
-                                responseHandler.onFailure(future.cause());
+                                callbackService.execute(() -> responseHandler.onFailure(future.cause()));
                             }
                         }
                     });
                 } else {
-                    responseHandler.onFailure(future.cause());
+                    callbackService.execute(() -> responseHandler.onFailure(future.cause()));
                 }
             }
         });
